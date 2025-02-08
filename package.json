@@ -1,12 +1,18 @@
 {
-  "name": "${PROJECT_NAME}",
+  "name": "VPAI2",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@coinbase/agentkit": "^0.1.2",
+    "@coinbase/agentkit-langchain": "^0.1.0",
+    "@langchain/langgraph": "^0.2.45",
+    "@langchain/openai": "^0.4.3",
+    "axios": "^1.7.9"
+  },
   "devDependencies": {
     "typescript": "^5.5.3"
   },

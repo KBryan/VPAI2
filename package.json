@@ -13,6 +13,7 @@
     "@langchain/openai": "^0.4.3",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
+    "ethers": "5.7",
     "express": "^4.21.2"
   },
   "devDependencies": {

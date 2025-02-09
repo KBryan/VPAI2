@@ -1,12 +1,20 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import axios from "axios"; // 🔹 Required for 1Inch API
 import { initializeAgent } from "./backend";
+import { ethers } from "ethers";
+
+
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const ONE_INCH_API_URL = "https://api.1inch.dev/swap/v5.2/84532"; // 84532 = Base Sepolia Chain ID
+const API_BASE_URL = "http://localhost:3000"; // ✅ Ensure it matches backend
+
 
 app.use(cors());
 app.use(express.json());
@@ -45,6 +53,107 @@ function ensureAgentReady(req: Request, res: Response, next: NextFunction): void
         next();
     }
 }
+
+/**
+ * Call a smart contract function
+ */
+app.post("/api/contract/call", ensureAgentReady, async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { contractAddress, abi, functionName, args, isWrite } = req.body;
+
+        if (!contractAddress || !abi || !functionName) {
+            res.status(400).json({ error: "Missing contractAddress, abi, or functionName" });
+            return;
+        }
+
+        console.log(`📡 Calling contract function ${functionName} on ${contractAddress}`);
+
+        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+        const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+        const contract = new ethers.Contract(contractAddress, abi, wallet);
+
+        let result;
+        if (isWrite) {
+            // Write (send) transaction
+            const tx = await contract[functionName](...args);
+            result = await tx.wait();
+        } else {
+            // Read (call) function
+            result = await contract[functionName](...args);
+        }
+
+        res.json({ success: true, result });
+    } catch (error: any) {
+        console.error("❌ Contract Call Error:", error);
+        res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+});
+/**
+ * Fetch a swap quote from 1Inch API
+ */
+app.get("/api/swap/quote", ensureAgentReady, async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { fromToken, toToken, amount, slippage } = req.query;
+
+        if (!fromToken || !toToken || !amount) {
+            res.status(400).json({ error: "Missing required parameters: fromToken, toToken, amount" });
+            return;
+        }
+
+        const response = await axios.get(`${ONE_INCH_API_URL}/quote`, {
+            params: {
+                fromTokenAddress: fromToken,
+                toTokenAddress: toToken,
+                amount,
+                slippage: slippage || 1,
+            },
+            headers: { Authorization: `Bearer ${process.env.ONE_INCH_API_KEY}` },
+        });
+
+        res.json(response.data);
+    } catch (error: any) {
+        console.error("❌ Swap Quote Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "Failed to fetch swap quote" });
+    }
+});
+
+/**
+ * Execute a swap on 1Inch
+ */
+app.post("/api/swap", ensureAgentReady, async (req: Request, res: Response) => {
+    try {
+        const { fromToken, toToken, amount, walletAddress } = req.body;
+
+        if (!fromToken || !toToken || !amount || !walletAddress) {
+            res.status(400).json({ error: "Missing required parameters: fromToken, toToken, amount, walletAddress" });
+            return;
+        }
+
+        console.log(`🔄 Requesting swap for ${amount} ${fromToken} → ${toToken} from ${walletAddress}...`);
+
+        // ✅ Fetch a swap quote from 1Inch API
+        const response = await axios.get(`${ONE_INCH_API_URL}/quote`, {
+            params: {
+                fromTokenAddress: fromToken,
+                toTokenAddress: toToken,
+                amount,
+                walletAddress,
+                slippage: 1, // Adjust slippage as needed
+            },
+            headers: { Authorization: `Bearer ${process.env.ONE_INCH_API_KEY}` },
+        });
+
+        console.log(`🔹 Swap Quote Received: ${JSON.stringify(response.data)}`);
+        res.json(response.data);
+
+    } catch (error: any) {
+        console.error("❌ Swap Error:", error.response?.data || error.message);
+        res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+});
+
+
+
 
 /**
  * Chat with AI

@@ -9,6 +9,7 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 Base
 ttps://base-sepolia.blockscout.com/address/0x55635cf82aAD3F330E6e21Bb553cB031b7457518
 Arbitrum
+https://arbitrum.blockscout.com/address/0x4365CB399c6aD4EfF2D1304F6FD3248201bA4c88?tab=contract
 
 */
 
